@@ -1461,8 +1461,29 @@ static void term_clipboard_set(void **argv)
     break;
   }
 
-  list_T *lines = tv_list_alloc(1);
-  tv_list_append_allocated_string(lines, data);
+  // make a list of the lines in `data` for provider#clipboard#Call('set')
+
+  // count '\n's first to alloc once
+  size_t line_count = 1;
+  const char *line_end;
+  while ((line_end = strchr(data, '\n'))) {
+    line_count++;
+  }
+  list_T *lines = tv_list_alloc(line_count);
+
+  // "line 1 \n line 2 \n rest \0"
+  //  ^start ^end
+  //         +1 ^start ^end
+  const char *line_start = data;
+  for (size_t k = 0; k < line_count - 1; k++) {
+    line_end = strchr(line_start, '\n');
+    tv_list_append_string(lines, line_start, line_end - line_start);
+    line_start = line_end + 1;
+  }
+  // "line 1 \n line 2 \n rest \0"
+  //                   +1 ^start
+  tv_list_append_string(lines, line_start, strlen(line_start));
+  xfree(data);
 
   list_T *args = tv_list_alloc(3);
   tv_list_append_list(args, lines);
